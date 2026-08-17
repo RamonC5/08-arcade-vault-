@@ -3,51 +3,35 @@
 import { useEffect, useState } from 'react';
 
 const TOTAL_POKEMON = 151;
+const API_BASE = 'https://pokeapi.co/api/v2/pokemon';
 const SPRITE_BASE =
   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
-const API_BASE = 'https://pokeapi.co/api/v2/pokemon';
 
-function spriteUrl(id: number) {
-  return `${SPRITE_BASE}/${id}.png`;
-}
-
-function dexNumber(id: number) {
-  return String(id).padStart(3, '0');
-}
+const spriteUrl = (id: number) => `${SPRITE_BASE}/${id}.png`;
 
 export default function PokemonCounterPage() {
   const [count, setCount] = useState(0);
-  const [fetched, setFetched] = useState<{ id: number; name: string } | null>(
-    null,
-  );
+  const [name, setName] = useState<string | null>(null);
 
   // 0 clics → #001, y cada clic avanza un Pokémon; al pasar el 151 vuelve al 1
   const pokemonId = (count % TOTAL_POKEMON) + 1;
-  const nextId = (pokemonId % TOTAL_POKEMON) + 1;
-
-  // el nombre solo se muestra si corresponde al Pokémon en pantalla
-  const name = fetched?.id === pokemonId ? fetched.name : null;
 
   useEffect(() => {
     const controller = new AbortController();
+    setName(null);
 
     fetch(`${API_BASE}/${pokemonId}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.name) setFetched({ id: pokemonId, name: data.name });
-      })
+      .then((data) => setName(data?.name ?? null))
       .catch(() => {
         // sin red o PokeAPI caída: la página sigue funcionando sin el nombre
       });
 
+    // precarga el siguiente sprite para que el cambio sea instantáneo
+    new window.Image().src = spriteUrl((pokemonId % TOTAL_POKEMON) + 1);
+
     return () => controller.abort();
   }, [pokemonId]);
-
-  // precarga el siguiente sprite para que el cambio sea instantáneo
-  useEffect(() => {
-    const img = new window.Image();
-    img.src = spriteUrl(nextId);
-  }, [nextId]);
 
   return (
     <div className="pkc-wrap">
@@ -67,7 +51,9 @@ export default function PokemonCounterPage() {
             width={200}
             height={200}
           />
-          <div className="pkc-dexnum">N.º {dexNumber(pokemonId)}</div>
+          <div className="pkc-dexnum">
+            N.º {String(pokemonId).padStart(3, '0')}
+          </div>
           <div className={`pkc-name${name ? '' : ' loading'}`}>
             {name ?? 'CARGANDO…'}
           </div>
